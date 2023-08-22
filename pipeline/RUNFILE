@@ -1,0 +1,152 @@
+def projectName = 'DEFAULT_PERSONAL'
+def token = 'psvR2pzrpBHec26kV1VNMNu6vr8'
+
+
+pipeline {
+    agent none
+
+    parameters {
+        string(name: 'FUNCTIONAL_TAGS', defaultValue: '@sample_tag_0,@sample_tag_1')
+        choice(name: 'NUMBER_OF_NODES', choices: ['1', '2', '3','4','5'])
+        string(name: 'BROWSER_TYPE', defaultValue: 'chrome,firefox')
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                // merge report on report portal
+
+
+                     tags = params.FUNCTIONAL_TAGS
+                     browsers = params.BROWSER_TYPE.split(',')
+                }
+            }
+        }
+
+        stage('smoke Test') {
+                    steps {
+                        script {
+                            def smokeTests = [:]
+                            browsers.each { browser ->
+                                smokeTests["smoke_test_on_${browser}"] = {
+                                    build(job: "smoke_test_on_${browser}",
+                                          parameters: [string(name: 'TAGS', value: 'smoke'),
+                                                       string(name: 'NUMBER_OF_NODES', value: '1'),
+                                                       string(name: 'BROWSER_TYPE', value: browser),
+                                                       String(name: 'LAUNCH_NAME', value: 'smokeTests - '+ browser)],
+                                          wait: true)
+                                }
+                            }
+                            parallel smokeTests
+                        }
+                    }
+                }
+
+        stage('Acceptance Test') {
+                    steps {
+                        script {
+                            def acceptanceTests = [:]
+                            browsers.each { browser ->
+                                acceptanceTests["acceptance_test_on_${browser}"] = {
+                                    build(job: "acceptance_test_on_${browser}",
+                                          parameters: [string(name: 'TAGS', value: 'acceptance'),
+                                                       string(name: 'NUMBER_OF_NODES', value: '1'),
+                                                       string(name: 'BROWSER_TYPE', value: browser),
+                                                       String(name: 'LAUNCH_NAME', value: 'acceptanceTests - '+ browser)],
+                                          wait: true)
+                                }
+                            }
+                            parallel acceptanceTests
+                        }
+                    }
+                }
+
+        stage('Functional Test') {
+                    steps {
+                        script {
+                            def functionalTests = [:]
+                            browsers.each { browser ->
+                                functionalTests["functional_test_on_${browser}"] = {
+                                    //Run 2 builds parallel
+                                    build(job: "functional_test_on_${browser}",
+                                          parameters: [string(name: 'TAGS', value: params.FUNCTIONAL_TAGS),
+                                                       string(name: 'NUMBER_OF_NODES', value: params.NUMBER_OF_NODES),
+                                                       string(name: 'BROWSER_TYPE', value: browser)
+                                                       String(name: 'LAUNCH_NAME', value: 'functionalTests - '+ browser)],
+                                          wait: true)
+                                }
+                            }
+                            parallel functionalTests
+                        }
+                    }
+                }
+
+        stage('Publish Reports') {
+            steps {
+
+                script{
+                    def projectName = 'DEFAULT_PERSONAL'
+                    def token = 'aa_It_OvLsFQkmUemdzQPVb7Wfan_NIWZ4ku9XV8rkE9AuBZeJ1xGdyDu2kYOqm9ycv'
+                    def Url = "https://demo.reportportal.io"
+                    // Get the current build start time in milliseconds
+                    def buildStartTimeInMillis = currentBuild.startTimeInMillis
+
+                    // Get the current time in milliseconds
+                    def currentTimeInMillis = System.currentTimeMillis()
+
+                    // Calculate the time difference in minutes
+                    def timeDifferenceInMinutes = (currentTimeInMillis - buildStartTimeInMillis) / 60000
+
+                    // Format the time difference as a string
+                    def formattedTimeDifference = timeDifferenceInMinutes.intValue()
+                    def launchName = 'functionalTests - '+ browser
+                    // convert launch name to html parameter
+                    def launchNameHtml = launchName.replaceAll(' ', '%20')
+
+                    browsers.each { browser ->
+                        {
+                        def apiUrl = url + "/api/v1/${projectName}/launch?filter.eq.name=${launchNameHtml}&filter.eq.startTime=-${formattedTimeDifference}"
+                        def httpResponse = httpRequest(url: apiUrl, customHeaders:[ [name:"Authorization", value: "Bearer ${token}"]], httpMode: 'GET')
+                        def launchDetails = new groovy.json.JsonSlurper().parseText(httpResponse.content)
+                        // Initialize an empty list to store the launch IDs
+                        def launchIds = []
+
+                        // Loop through each launch object and extract the 'id' (launch ID)
+                        launchDetails.content.each { launch ->
+                            launchIds.add(launch.id)
+                        }
+                        def lastLaunchIds = launchIds.takeRight(TAGS.size())
+
+                        def TAGS = params.FUNCTIONAL_TAGS.split(',')
+                        // Construct the request body for merging launches
+
+                        def mergeApiUrl = url + "/api/v1/${projectName}/launch/merge"
+                        def requestBody = """
+                        {
+                          "extendSuitesDescription": true,
+                          "launches": ${lastLaunchIds}, // Use the stored launch ID
+                          "mergeType": "DEEP",
+                          "mode": "DEFAULT",
+                          "name": ${launchName}, // Specify the name for the merged launch
+                        }
+                        """
+
+                        // Make the API request to merge the launches
+                        def mergeResponse = httpRequest(
+                            url: mergeApiUrl,
+                            httpMode: 'POST',
+                            customHeaders:[ [name:"Authorization", value: "Bearer ${token}"]],
+                            requestBody: requestBody,
+                            contentType: 'APPLICATION_JSON'
+                        )
+
+                        def mergeResponse = new groovy.json.JsonSlurper().parseText(mergeResponse.content)
+                        // Store the ID of the merged launch for further processing
+                        def mergedLaunchId = mergeResponse.data.id
+
+                    }
+            }
+        }
+    }
+}

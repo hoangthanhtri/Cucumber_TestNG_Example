@@ -1,0 +1,9 @@
+services:
+
+  jenkin-node-1:
+    image: jenkins/ssh-agent:latest-jdk17
+    environment:
+      JENKINS_AGENT_SSH_PUBKEY: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDEuLpGScFSeG68+0QLo2WRlYhysovLUpQwIHniWQDOymNQFfsrKwrrZGZ/c6e8Znkit0QMBVaBDdv80UyESpwIiXJlkoFSYnOI2IUpshJdnEddNr1kdowVarzrOWNeH9cNEfA62y5RFi1y0Z2pj9oVz1Ry9PCKKRPE8mukVLNZis9JcagQLteHr5bryp3H5NnYUtNKla+Kvv+uJai0yB0rE+/Br7xz9PljvRMvKDHzHwbu87MYFn86UfnCZWNG04KcOuUJOw4lNcDzfF7lPIlsScomYMHfjNWd33OPP1xRRM+eLq1PHl0sX/UszK33p2ygTIwLRbzotRvyvFZA7vkD2DMOG9VZ7ftk1JgUazHETT8GEYcv/nmL8HTZ/xiS2TZepUQonH0/Scq84T1goZn98xY1kGk5/93NKXk1l4KBHg80GB4bsm2q+O7W+l77N4izea73CzWbHyFZkiFXKY5sW62aFPzo2AhsVad+UiMMDTAnod35adY7wwu8KOvGa0c= jenkins@08e5939aecc8
+    ports:
+      - 2222:22 #ssh
+

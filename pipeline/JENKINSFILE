@@ -1,0 +1,71 @@
+import jenkins.model.Jenkins
+
+// declare tags and nodeLabels array and number of usage node and browserType
+def tags = []
+def numberOfNode = 1
+def browserType = ''
+def launchName = ''
+
+
+def getFreeAgents(numberOfNode) {
+    def freeAgents = []
+    Jenkins.instance.computers.each { agent ->
+        if (freeAgents.size() >= numberOfNode) {
+            return freeAgents
+        }
+        if (agent.isIdle()) {
+            freeAgents.add(agent.getDisplayName())
+        }
+    }
+    return freeAgents
+}
+    
+  pipeline {
+    agent none
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    // get all tags from jenkins parameter
+                    tags = params.TAGS.split(',')
+                    // get number of node
+                    numberOfNode = params.NUMBER_OF_NODES.toInteger()
+                    // get browser type
+                    browserType = params.BROWSER_TYPE
+                    // get launch name
+                    launchName = params.LAUNCH_NAME
+                }
+            }
+        }
+
+        stage('Test') {
+
+            steps {
+                script {
+                    def test = [:]
+                    lock('AgentAllocation') {
+                        def agents = getFreeAgents(numberOfNode)
+
+                        for (int i = 0; i < tags.size(); i++) {
+                            def agent = agents[i % numberOfNode]
+                            String tag = tags[i]
+
+                            test["${tag}"] = {
+                                node(agent) {
+                                    git branch: 'main', url: 'https://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:x-oauth-basic@github.com/hoangthanhtri/Automation---Cucumber-TestNG.git'
+                                    sh 'chmod +x ./src/main/resources/drivers/*'
+                                    sh "mvn clean compile test -rp.launch=${launchName} -DbrowserType=${browserType} -Dmaven.test.failure.ignore=true -Dcucumber.filter.tags='${tag} and (not @ignore)'"
+                                    sh "mv ./target/cucumber-reports/cucumber.json ./target/cucumber-reports/${tag}_${agent}.json"
+                                    archiveArtifacts artifacts: 'target/cucumber-reports/*.json', fingerprint: true
+                                }
+                            }
+                        }
+                    }
+                parallel test
+              }
+          }
+        }
+
+
+    }
+  }

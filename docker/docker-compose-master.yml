@@ -1,0 +1,12 @@
+services:
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    ports:
+      - 8999:8080
+      - 55555:55555
+    volumes:
+      - jenkins-home:/var/jenkins_home
+
+volumes:
+  jenkins-home:

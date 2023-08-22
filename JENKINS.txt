@@ -1,0 +1,19 @@
+1. download jenkin.war jenkin.io
+2. Install Java version according to jenkin required
+3. Run jenkin on CMD, "Java -jar jenkins.war"
+4. Change port "java -jar jenkins.war --httpPort=9090" (If needed)
+5. Access to Localhost:8080 or localhost:9090
+6. Manage Jenkins -> Global tool configuration -> Config Java JDK and Maven
+7. Manage Jenkins -> Manage plugin -> Install Maven intergration plugin, Test Results Analyzer
+8. Create item
+9. Input goals and options "clean compile test -Dcucumber.filter.tags="(@${tag} and (not @ignore))" -Ddataproviderthreadcount=${threadCount} -DbrowserType="${browserType}"
+10. Add testNG.xml file to /src/test/java/runners/testng/testng.xml
+11. Add maven surefile plugin
+12. Add <suitXmlFile>testng file source to configuration of maven surefile plugin
+13. Remove tags value on Mainrunner file
+14. install maven plugin on jenkins
+14. Install cumcuber report on jenkins
+15. Add cucumber report on post-build action on build setting
+16. Go to Manage Jenkins -> Script Console -> Run script to unblock the inline CSS, JS Ajax resources & show image on report
+System.clearProperty("hudson.model.DirectoryBrowserSupport.CSP");
+System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
